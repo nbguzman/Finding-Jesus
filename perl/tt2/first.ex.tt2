@@ -1,0 +1,393 @@
+[% USE CGI %]
+<!-- 
+	Neil Guzman: 021-428-107
+	BTI320A
+	Perl Milestone #4
+	12/10/2011
+-->
+<!DOCTYPE html
+	PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+	 "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml" lang="en-US" xml:lang="en-US">
+<head>
+	<title>KJV Search</title>
+	<link href="kjv.css" rel="stylesheet" type="text/css">
+	<meta http-equiv="Content-Type" content="text/html; charset=iso-8859-1" />
+	<link href="http://ajax.googleapis.com/ajax/libs/jqueryui/1.8/themes/base/jquery-ui.css" rel="stylesheet" type="text/css"/>
+	<script src="http://ajax.googleapis.com/ajax/libs/jquery/1.5/jquery.min.js"></script>
+	<script src="http://ajax.googleapis.com/ajax/libs/jqueryui/1.8/jquery-ui.min.js"></script>
+	<script>
+		$(document).ready(function() {
+			$("#accordion").accordion();
+		});
+		$(function() {
+			$('#activator').click(function(){
+				$('#overlay').fadeIn('fast',function(){
+					$('#box').animate({'top':'160px'},100);
+				});
+			});
+			$('#boxclose').click(function(){
+				$('#box').animate({'top':'-9999px'},100,function(){
+					$('#overlay').fadeOut('fast');
+				});
+			});
+
+		});
+	</script>
+</head>
+<body>
+<div id = "container">
+	<div id = "header">
+		<a href="[% home %]">King James Bible Search Form</a>
+	</div>
+	<div id = "search-row">
+		<form id="form" method="get" action="" enctype="multipart/form-data">
+			<table class="table" id="table">
+				<tr>
+					<td><input type="text" name="phrase" size="64" value="[% phrase %]"/></td>
+					<td>
+						<select name="book"  id="book">
+							<optgroup label="Section">
+								[% FOREACH key IN sect_names.keys %]
+									[% IF book == key %]
+										<option value="[% key %]" selected="selected">[% sect_names.$key %]</option>
+									[% ELSE %]
+										<option value="[% key %]">[% sect_names.$key %]</option>
+									[% END %]
+								[% END %]
+							</optgroup>
+							[% FOREACH akey IN sect_names.keys %]
+								[% IF akey != 'A' %]
+								<optgroup label="[% sect_names.$akey %]">
+								[% FOREACH key IN records %]
+									[% IF akey == key.section %]
+										[% IF book == key.number %]
+											<option value="[% key.number %]" selected="selected">[% key.name %]</option>
+										[% ELSE %]
+											<option value="[% key.number %]">[% key.name %]</option>
+										[% END %]
+									[% END %]
+								[% END %]
+								</optgroup>
+								[% END %]
+							[% END %]
+						</select> 
+					</td>
+					<td>
+						<input id="search-button" type="submit" name="choice" value="Search" />
+					</td>
+				</tr> 
+				<tr>
+					<td>
+						<p>Translation</p>
+					</td>
+					<td>
+						<select name="translation" id="translation">
+							[% FOREACH key IN translations.keys %]
+								[% IF key == translation %]
+									<option value="[% key %]" selected="selected">[% translations.$key %]</option>
+								[% ELSE %]
+									<option value="[% key %]">[% translations.$key %]</option>
+								[% END %]
+							[% END %]
+						</select>
+					</td>
+				</tr>
+				<tr>
+					<td>
+						<p>Order results by</p>
+					</td>
+					<td>
+						<select name="searchOrder" id="searchOrder">
+							[% FOREACH key IN searchOrderSelect.keys.reverse %]
+								[% IF key == searchOrder %]
+									<option value="[% key %]" selected="selected">[% searchOrderSelect.$key %]</option>
+								[% ELSE %]
+									<option value="[% key %]">[% searchOrderSelect.$key %]</option>
+								[% END %]
+							[% END %]
+						</select>
+					</td>
+				</tr>
+				<tr>
+					<td>
+						<p>Results per page </p>
+					</td>
+					<td>
+						<select name="searchResultsPP" id="searchResultsPP">
+							[% FOREACH key IN searchResultsPPSelect.keys.nsort %]
+								[% IF searchResultsPPSelect.$key == searchResultsPP %]
+									<option value="[% key %]" selected="selected">[% searchResultsPPSelect.$key %]</option>
+								[% ELSE %]
+									<option value="[% key %]">[% searchResultsPPSelect.$key %]</option>
+								[% END %]
+							[% END %]
+						</select>
+					</td>
+				</tr>
+				<tr>
+					<td>
+						<p>Return count only:</p>
+					</td> 
+					<td>
+						<label><input type="radio" name="count_only" value="1" [% IF count_only %] checked="checked" [% END %]/>yes</label>
+						<label><input type="radio" name="count_only" value="0" [% IF !count_only %] checked="checked" [% END %]/>no</label>
+					</td>
+				</tr>
+				<tr>
+					<td>
+						<p>Boolean mode:</p>
+					</td> 
+					<td>
+						<label id="activator"><input type="radio" name="bool" value="1" [% IF bool %] checked="checked" [% END %]/>yes</label>
+						<label><input type="radio" name="bool" value="0" [% IF !bool %] checked="checked" [% END %]/>no</label>
+						
+						<div class="overlay" id="overlay" style="display:none;"></div>
+						<div class="box" id="box">
+						 <a class="boxclose" id="boxclose"></a>
+						 <h1>Boolean Search Operators</h1>
+						 <div class="accordion" id="accordion">
+							<h3><a href="#">QUOTATION (" ")</a></h3>
+							<div>
+								<p>
+									A phrase that is enclosed within double quote (""") characters matches only rows that contain the phrase literally, as it was typed.
+								</p>
+								<br / >
+								<p>
+									For example:
+								</p>
+								<ul>
+									<li><code>'"some words"'</code></li>
+								</ul>
+								<p>
+									Find rows that contain the exact phrase "some words" (for example, rows that contain "some words of wisdom" but not "some noise words").
+								</p>
+							</div>
+							<h3><a href="#">AND (+)</a></h3>
+							<div>
+								<p>
+									A leading plus sign indicates that this word must be present in each row that is returned. 
+								</p>
+								<br / >
+								<p>
+									For example:
+								</p>
+								<ul>
+									<li><code>'+apple +juice'</code></li>
+								</ul>
+								<p>
+									Find rows that contain both words.
+								</p>
+							</div>
+							<h3><a href="#">OR</a></h3>
+							<div>
+								<p>
+									By default (when neither + nor - is specified) the word is optional, but the rows that contain it are rated higher. 
+								</p>
+								<br / >
+								<p>
+									For example:
+								</p>
+								<ul>
+									<li><code>'apple banana'</code></li>
+								</ul>
+								<p>
+									Finds rows that contain at least one of the two words.
+								</p>
+							</div>
+							<h3><a href="#">NOT (-)</a></h3>
+							<div>
+								<p>
+									A leading minus sign indicates that this word must not be present in any of the rows that are returned. 
+								</p>
+								<br / >
+								<p>
+									For example:
+								</p>
+								<ul>
+									<li><code>'+apple -macintosh'</code></li>
+								</ul>
+								<p>
+									Find rows that contain the word "apple" but not "macintosh"
+								</p>
+							</div>
+							<h3><a href="#">RELEVANCE (< >)</a></h3>
+							<div>
+								<p>
+									These two operators are used to change a word's contribution to the relevance value that is assigned to a row. The > operator increases the contribution and the < operator decreases it. See the example following this list. 
+								</p>
+								<br / >
+								<p>
+									For example:
+								</p>
+								<ul>
+									<li><code>'+(>[word1] <[word2])'</code></li>
+								</ul>
+								<p>
+									Find rows that contain "word1" or "word2" but rank rows that contain "word1" higher than rows with "word2". (word1/word2 are to be replaced by any words and must not include square brackets)
+								</p>
+							</div>
+							<h3><a href="#">TRUNCATION (*)</a></h3>
+							<div>
+								<p>
+									The asterisk serves as the truncation (or wildcard) operator. Unlike the other operators, it should be appended to the word to be 	affected. Words match if they begin with the word preceding the * operator. 
+								</p>
+								<br / >
+								<p>
+									For example:
+								</p>
+								<ul>
+									<li><code>'apple*'</code></li>
+								</ul>
+								<p>
+									Find rows that contain words such as "apple", "apples", "applesauce", or "applet". 
+								</p>
+							</div>
+							<h3><a href="#">GROUPING (( ))</a></h3>
+							<div>
+								<p>
+									Parentheses group words into subexpressions. Parenthesized groups can be nested. 
+								</p>
+								<br / >
+								<p>
+									For example:
+								</p>
+								<ul>
+									<li><code>'+apple +(>[word1]  <[word2])'</code></li>
+								</ul>
+								<p>
+									Find rows that contain the words "apple" and "word1", or "apple" and "word2" (in any order), but rank "apple word1" higher than "apple word2". (word1/word2 are to be replaced by any words and must not include square brackets)
+								</p>
+							</div>
+						</div>
+						</div>
+					</td>
+				</tr>
+			</table>
+		</form>
+	</div>
+	[% IF phrase != null %]
+		<div id ="results-header">
+			<p>About [% numSearched %] results for: [% CGI.param('phrase') %] </p>
+		</div>
+		[% IF !count_only %]
+			[% IF totalPages > 1 %]
+					<div id="results-paging">
+						[% IF pageNow != 1 %]
+							[% IF pageP >= 1 %]
+								<a href="[% prevBulk %]" id="navigationLeft"><img border="0" src="images/prevBulk.png" alt="HTML tutorial" width="24" height="36" /></a>
+							[% ELSE %]
+								<a href="[% first %]"  id="navigationLeft" ><img border="0" src="images/prevBulk.png" alt="HTML tutorial" width="24" height="36" /></a>
+							[% END %]
+							<a href="[% prevPage %]" id="navigationLeft" ><img border="0" src="images/prev.png" alt="HTML tutorial" width="24" height="36" /></a>
+						[% END %]
+						
+						[% FOREACH key IN visiblePages.keys.nsort %]
+							[% IF curPageURI == visiblePages.$key %]
+								<a href="[% visiblePages.$key %]" id="current">[% key %]</a>
+							[% ELSE %]
+								<a href="[% visiblePages.$key %]">[% key %]</a>
+							[% END %]
+						[% END %]
+						
+						[% IF pageNow != totalPages %]
+							<a href="[% nextPage %]" id="navigationRight"><img border="0" src="images/next.png" alt="HTML tutorial" width="24" height="36" /></a>
+							[% IF pageN < totalPages %]
+								<a href="[% nextBulk %]" id="navigationRight"  ><img border="0" src="images/nextBulk.png" alt="HTML tutorial" width="24" height="36" /></a>
+							[% ELSE %]
+								<a href="[% last %]" id="navigationRight" ><img border="0" src="images/nextBulk.png" alt="HTML tutorial" width="24" height="36" /></a>
+							[% END %]
+						[% END %]
+					</div>
+				[% END %]
+			<div id="results">
+				[% IF cnumParam && pageNow == 1 %]
+					<h2><a href="[% goBack %]" class="back"> Go back</a></h2>
+				[% END %]
+				[% FOREACH key IN searchRecords %]
+					[% IF cnumParam != NULL && bookParam != NULL %]
+						<h3>[% key.bname %] [% key.cnum %]:[% key.vnum %]</h3>
+						<ul><li><em>[% key.vtext %]</em></li></ul>
+						<div id="under">
+							[% FOREACH akey IN compTrans %]
+								[% IF akey != akey.translation %]
+									<a href="[% akey.transURI %]">[% akey.translation %]</a>
+								[% END %]
+							[% END %]
+						</div>
+					[% ELSE %]
+						<h3><a href="[% key.uri %]">[% key.bname %] [% key.cnum %]:[% key.vnum %]</a></h3>
+						<ul><li><em>[% key.vtext %]</em></li></ul>
+						<div id="under">
+							[% FOREACH akey IN compTrans %]
+								[% IF akey != akey.translation && key.vnum == akey.vnum && key.cnum == akey.cnum && key.bname == akey.bname %]
+									<a href="[% akey.transURI %]">[% akey.translation %]</a>
+								[% END %]
+							[% END %]
+							
+						</div>
+					[% END %]
+				[% END %]
+				[% IF flag == 1 %]
+					[% FOREACH key IN compTrans %]
+							<h3>[% key.bname %] [% key.cnum %]:[% key.vnum %]</h3>
+							<ul><li><em>[% key.vtext %]</em></li></ul>
+							<div id="under">
+								<a href="">[% key.translation %]</a>
+							</div>
+					[% END %]
+				[% END %]
+			</div>
+			[% IF totalPages > 1 %]
+				<div id="paging">
+					[% IF pageNow != 1 %]
+						[% IF pageP >= 1 %]
+							<a href="[% prevBulk %]" id="navigationLeft"><img border="0" src="images/prevBulk.png" alt="HTML tutorial" width="24" height="36" /></a>
+						[% ELSE %]
+							<a href="[% last %]"  id="navigationLeft" ><img border="0" src="images/prevBulk.png" alt="HTML tutorial" width="24" height="36" /></a>
+						[% END %]
+						<a href="[% prevPage %]" id="navigationLeft" ><img border="0" src="images/prev.png" alt="HTML tutorial" width="24" height="36" /></a>
+					[% END %]
+					
+					[% FOREACH key IN visiblePages.keys.nsort %]
+						[% IF curPageURI == visiblePages.$key %]
+							<a href="[% visiblePages.$key %]" id="current">[% key %]</a>
+						[% ELSE %]
+							<a href="[% visiblePages.$key %]">[% key %]</a>
+						[% END %]
+					[% END %]
+					
+					[% IF pageNow != totalPages %]
+						<a href="[% nextPage %]" id="navigationRight"><img border="0" src="images/next.png" alt="HTML tutorial" width="24" height="36" /></a>
+						[% IF pageN < totalPages %]
+							<a href="[% nextBulk %]" id="navigationRight"  ><img border="0" src="images/nextBulk.png" alt="HTML tutorial" width="24" height="36" /></a>
+						[% ELSE %]
+							<a href="[% last %]" id="navigationRight" ><img border="0" src="images/nextBulk.png" alt="HTML tutorial" width="24" height="36" /></a>
+						[% END %]
+					[% END %]
+				</div>
+			[% END %]
+		[% END %]
+	[% END %]
+	
+	<div id = "footer">
+		<p>Comments or questions? Contact <a href="mailto:nbguzman@learn.senecac.on.ca?subject=KJVSearch">My Email</a></p>
+		<!--
+		[% FOREACH key IN sect_names.keys %]
+			<p>[% sect_names.$key %]</p>
+		[% END %]
+		
+		[% FOREACH key IN records %]
+			<p>[% key.number %][% key.section %][% key.name %][% key.label %]</p>
+		[% END %]
+		-->
+		<!--
+		[% FOREACH key IN sections.keys %]
+			<p>[% key %]</p>
+			<p>[% sections.$key %]</p><br/>
+		[% END %]
+		-->
+	</div>
+</div>
+</body>
+</html>			
