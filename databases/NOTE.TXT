@@ -1,0 +1,9 @@
+For perl version to work, tables:
+
+    - asv
+    - basic_english
+    - web
+    - webtest
+    - ylt
+
+have to be created. This can be done by just copying kjv table to these names.
